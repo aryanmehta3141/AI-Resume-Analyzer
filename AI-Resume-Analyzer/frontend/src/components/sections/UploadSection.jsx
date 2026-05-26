@@ -80,14 +80,23 @@ export default function UploadSection() {
   const onAnalyze = async () => {
     if (!file || isAnalyzing) return
 
-    // Create a new AbortController for this request
+    // Create a new AbortController for this request.
+    // We also set a 70-second timeout to handle Render's free-tier cold start
+    // (the server sleeps after inactivity and takes ~30-50s to wake up).
     const controller = new AbortController()
     abortControllerRef.current = controller
+
+    const timeoutId = setTimeout(() => controller.abort('timeout'), 70_000)
 
     setIsAnalyzing(true)
     setMessage('Analyzing your resume…')
     setMessageType('info')
     setAnalysis(null)
+
+    // Show a "waking up" hint after 5 seconds so users don't think it's broken
+    const slowHintId = setTimeout(() => {
+      setMessage('Still working… the server may be waking up from sleep (this can take ~30s on first use).')
+    }, 5000)
 
     const formData = new FormData()
     formData.append('resume', file)
@@ -96,7 +105,7 @@ export default function UploadSection() {
       const response = await fetch(ANALYZE_URL, {
         method: 'POST',
         body: formData,
-        signal: controller.signal, // Allows cancellation via abortControllerRef
+        signal: controller.signal,
       })
 
       const result = await response.json()
@@ -117,17 +126,23 @@ export default function UploadSection() {
       setMessage('Analysis complete!')
       setMessageType('success')
     } catch (error) {
-      // AbortError means the user cancelled — don't show an error message
-      if (error.name === 'AbortError') return
+      // User clicked Cancel
+      if (error.name === 'AbortError' && error.message !== 'timeout') return
 
-      const msg =
-        error.message === 'Failed to fetch'
-          ? 'Cannot reach the backend. Make sure it is running on port 5000.'
-          : error.message || 'Something went wrong. Please try again.'
+      let msg
+      if (error.message === 'timeout' || error.name === 'AbortError') {
+        msg = 'Request timed out. The server may still be waking up — please try again in a moment.'
+      } else if (error.message === 'Failed to fetch') {
+        msg = 'Cannot reach the backend. Please try again — the server may be starting up.'
+      } else {
+        msg = error.message || 'Something went wrong. Please try again.'
+      }
 
       setMessage(msg)
       setMessageType('error')
     } finally {
+      clearTimeout(timeoutId)
+      clearTimeout(slowHintId)
       setIsAnalyzing(false)
       abortControllerRef.current = null
     }
