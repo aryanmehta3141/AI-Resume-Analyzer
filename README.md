@@ -4,7 +4,7 @@ An AI-powered resume analyzer that gives instant ATS scoring, formatting feedbac
 
 Built with React, Express.js, and the Gemini API.
 
-![ResumeAI Screenshot](frontend/src/assets/hero.png)
+![ResumeAI Screenshot](AI-Resume-Analyzer/frontend/src/assets/hero.png)
 
 ---
 
@@ -215,30 +215,6 @@ Analyzes a resume PDF.
 
 ---
 
-## Deployment
-
-See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full step-by-step guide covering:
-
-- Deploying the backend to **Render** or **Railway**
-- Deploying the frontend to **Vercel**
-- Wiring `FRONTEND_URL` and `VITE_API_URL` together
-- Common deployment mistakes and how to fix them
-- Pre-launch checklist
-
-**Quick summary:**
-
-```
-Frontend → Vercel
-  VITE_API_URL = https://your-backend.onrender.com
-
-Backend → Render
-  GEMINI_API_KEY = your_key
-  FRONTEND_URL   = https://your-app.vercel.app
-  NODE_ENV       = production
-```
-
----
-
 ## Demo Mode
 
 If your Gemini quota is exceeded or you want to demo offline, add this to `backend/.env`:
@@ -273,9 +249,3 @@ The backend will return a realistic sample analysis without calling Gemini at al
 7. Frontend maps response → renders
    ATS score ring + 3 suggestion cards
 ```
-
----
-
-## License
-
-MIT
