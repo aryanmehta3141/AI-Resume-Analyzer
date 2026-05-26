@@ -2,9 +2,9 @@ import Button from '../ui/Button'
 
 export default function Hero() {
   return (
-    <section className="relative pt-32 pb-20 md:pt-40 md:pb-28">
+    <section className="relative pt-28 pb-14 md:pt-36 md:pb-18">
       <div className="mx-auto max-w-6xl px-6 text-center lg:px-8">
-        <div className="mx-auto max-w-4xl space-y-8">
+        <div className="mx-auto max-w-4xl space-y-6 md:space-y-7">
           <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-zinc-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
             AI-powered resume insights
@@ -34,7 +34,7 @@ export default function Hero() {
           </div>
 
           <p className="text-sm text-zinc-500">
-            PDF, DOCX · Private by default · No account required
+            PDF only · Private by default · No account required
           </p>
         </div>
       </div>

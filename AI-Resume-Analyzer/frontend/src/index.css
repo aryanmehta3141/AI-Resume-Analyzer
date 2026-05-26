@@ -37,3 +37,24 @@ body {
 .animate-glow-drift {
   animation: glow-drift 12s ease-in-out infinite;
 }
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e1b4b; /* very dark indigo */
+  border-radius: 9999px;
+  border: 2px solid #09090b;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4f46e5; /* indigo-600 */
+}

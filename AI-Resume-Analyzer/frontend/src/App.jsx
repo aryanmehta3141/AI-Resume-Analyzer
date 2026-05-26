@@ -6,6 +6,7 @@ import UploadSection from './components/sections/UploadSection'
 import Features from './components/sections/Features'
 import SocialProof from './components/sections/SocialProof'
 import FinalCTA from './components/sections/FinalCTA'
+import ScrollToTop from './components/ui/ScrollToTop'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <FinalCTA />
       </main>
       <Footer />
+      <ScrollToTop />
     </div>
   )
 }

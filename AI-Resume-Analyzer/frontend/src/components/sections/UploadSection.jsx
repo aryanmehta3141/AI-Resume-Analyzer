@@ -1,12 +1,9 @@
 import { useCallback, useRef, useState } from 'react'
 import Button from '../ui/Button'
 import SectionHeading from '../ui/SectionHeading'
-
-const ACCEPTED_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]
+import AnalysisResults from './AnalysisResults'
+import { ANALYZE_URL } from '../../config/api'
+import { hasAnalysisContent, mapAnalysis } from '../../utils/mapAnalysis'
 
 function UploadIcon() {
   return (
@@ -24,45 +21,134 @@ function FileIcon() {
   )
 }
 
+// Human-readable file size
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export default function UploadSection() {
   const inputRef = useRef(null)
+  // abortControllerRef holds the AbortController for the in-flight fetch.
+  // This lets us cancel the request if the user clears the file mid-analysis.
+  const abortControllerRef = useRef(null)
+
   const [file, setFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('info')
+  const [analysis, setAnalysis] = useState(null)
 
   const handleFile = useCallback((selected) => {
     if (!selected) return
-    const isValid =
-      ACCEPTED_TYPES.includes(selected.type) ||
-      /\.(pdf|doc|docx)$/i.test(selected.name)
-    if (!isValid) {
-      setMessage('Please upload a PDF or Word document.')
+
+    // Client-side PDF check — catches obvious mistakes before hitting the server
+    const isPdf =
+      selected.type === 'application/pdf' ||
+      selected.name.toLowerCase().endsWith('.pdf')
+
+    if (!isPdf) {
+      setMessage('Please upload a PDF file.')
+      setMessageType('error')
       return
     }
+
+    // 5 MB client-side guard (matches backend limit)
+    const MAX_SIZE = 5 * 1024 * 1024
+    if (selected.size > MAX_SIZE) {
+      setMessage('File is too large. Maximum size is 5MB.')
+      setMessageType('error')
+      return
+    }
+
     setFile(selected)
     setMessage('')
+    setAnalysis(null)
   }, [])
 
   const onDrop = useCallback(
     (e) => {
       e.preventDefault()
       setIsDragging(false)
-      const dropped = e.dataTransfer.files?.[0]
-      handleFile(dropped)
+      handleFile(e.dataTransfer.files?.[0])
     },
     [handleFile],
   )
 
-  const onAnalyze = () => {
+  const onAnalyze = async () => {
     if (!file || isAnalyzing) return
+
+    // Create a new AbortController for this request
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setIsAnalyzing(true)
-    setMessage('')
-    setTimeout(() => {
+    setMessage('Analyzing your resume…')
+    setMessageType('info')
+    setAnalysis(null)
+
+    const formData = new FormData()
+    formData.append('resume', file)
+
+    try {
+      const response = await fetch(ANALYZE_URL, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal, // Allows cancellation via abortControllerRef
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Analysis failed. Please try again.')
+      }
+
+      const mapped = mapAnalysis(result.data)
+
+      if (!hasAnalysisContent(mapped)) {
+        throw new Error(
+          'Analysis returned empty data. Please check your GEMINI_API_KEY and restart the backend.',
+        )
+      }
+
+      setAnalysis(mapped)
+      setMessage('Analysis complete!')
+      setMessageType('success')
+    } catch (error) {
+      // AbortError means the user cancelled — don't show an error message
+      if (error.name === 'AbortError') return
+
+      const msg =
+        error.message === 'Failed to fetch'
+          ? 'Cannot reach the backend. Make sure it is running on port 5000.'
+          : error.message || 'Something went wrong. Please try again.'
+
+      setMessage(msg)
+      setMessageType('error')
+    } finally {
       setIsAnalyzing(false)
-      setMessage(`Analysis complete for "${file.name}". Full results coming soon.`)
-    }, 2000)
+      abortControllerRef.current = null
+    }
   }
+
+  const onClear = () => {
+    // Cancel any in-flight request before clearing state
+    abortControllerRef.current?.abort()
+    setFile(null)
+    setMessage('')
+    setAnalysis(null)
+    setIsAnalyzing(false)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  const messageColor =
+    messageType === 'success'
+      ? 'text-emerald-400'
+      : messageType === 'error'
+        ? 'text-amber-400'
+        : 'text-zinc-400'
 
   return (
     <section id="upload" className="py-24 md:py-32">
@@ -70,7 +156,7 @@ export default function UploadSection() {
         <SectionHeading
           eyebrow="Get started"
           title="Upload your resume"
-          description="Drop your file below and get AI-powered feedback in seconds."
+          description="Drop your PDF below and get AI-powered feedback in seconds."
           className="mb-12"
         />
 
@@ -78,6 +164,7 @@ export default function UploadSection() {
           <div
             role="button"
             tabIndex={0}
+            aria-label="Upload resume PDF"
             onClick={() => inputRef.current?.click()}
             onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
             onDragOver={(e) => {
@@ -87,38 +174,43 @@ export default function UploadSection() {
             onDragLeave={() => setIsDragging(false)}
             onDrop={onDrop}
             className={[
-              'flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-colors duration-200',
+              'group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300 ease-out backdrop-blur-sm',
               isDragging
-                ? 'border-violet-400/60 bg-violet-500/5'
-                : 'border-white/20 bg-zinc-900/30 hover:border-white/30 hover:bg-zinc-900/50',
+                ? 'scale-[1.01] border-violet-400 bg-violet-500/10 shadow-[0_0_30px_rgba(139,92,246,0.25)] ring-2 ring-violet-500/20'
+                : 'border-white/10 bg-zinc-900/30 shadow-[0_10px_30px_rgba(0,0,0,0.3)] hover:scale-[1.005] hover:border-violet-500/30 hover:bg-zinc-900/50 hover:shadow-[0_10px_40px_rgba(139,92,246,0.06)]',
             ].join(' ')}
           >
             <input
               ref={inputRef}
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept=".pdf,application/pdf"
               className="hidden"
+              aria-hidden="true"
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
 
             {file ? (
               <>
-                <FileIcon />
-                <p className="mt-4 font-medium text-white">{file.name}</p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {(file.size / 1024).toFixed(1)} KB · Click or drop to replace
+                <div className="text-violet-400 transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(139,92,246,0.4)]">
+                  <FileIcon />
+                </div>
+                <p className="mt-4 font-medium text-white transition-colors duration-300 group-hover:text-violet-300">
+                  {file.name}
+                </p>
+                <p className="mt-1.5 text-sm text-zinc-500">
+                  {formatSize(file.size)} · Click or drop to replace
                 </p>
               </>
             ) : (
               <>
-                <div className="mb-4 text-zinc-500">
+                <div className="mb-4 text-zinc-500 transition-all duration-300 group-hover:-translate-y-1 group-hover:text-violet-400 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(139,92,246,0.3)]">
                   <UploadIcon />
                 </div>
-                <p className="font-medium text-white">
+                <p className="font-medium text-white transition-colors duration-300 group-hover:text-zinc-200">
                   Drag & drop your resume here
                 </p>
                 <p className="mt-2 text-sm text-zinc-500">
-                  or click to browse · PDF, DOC, DOCX up to 10MB
+                  or click to browse · PDF only, up to 5MB
                 </p>
               </>
             )}
@@ -129,46 +221,50 @@ export default function UploadSection() {
               size="lg"
               disabled={!file || isAnalyzing}
               onClick={onAnalyze}
-              className="w-full sm:w-auto min-w-[200px]"
+              className="w-full min-w-[200px] sm:w-auto"
+              aria-busy={isAnalyzing}
             >
               {isAnalyzing ? (
                 <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Analyzing...
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                    aria-hidden="true"
+                  />
+                  Analyzing…
                 </span>
               ) : (
                 'Analyze resume'
               )}
             </Button>
-            {file && !isAnalyzing && (
+
+            {file && (
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={() => {
-                  setFile(null)
-                  setMessage('')
-                  if (inputRef.current) inputRef.current.value = ''
-                }}
+                onClick={onClear}
+                disabled={false}
               >
-                Clear file
+                {isAnalyzing ? 'Cancel' : 'Clear file'}
               </Button>
             )}
           </div>
 
           {message && (
             <p
-              className={`text-center text-sm ${
-                message.startsWith('Analysis complete')
-                  ? 'text-emerald-400'
-                  : message.startsWith('Please')
-                    ? 'text-amber-400'
-                    : 'text-zinc-400'
-              }`}
+              role={messageType === 'error' ? 'alert' : 'status'}
+              className={`text-center text-sm ${messageColor}`}
             >
               {message}
             </p>
           )}
         </div>
+
+        {/* Results use full section width — upload stays narrow above */}
+        {analysis && (
+          <div className="mt-12 w-full">
+            <AnalysisResults data={analysis} />
+          </div>
+        )}
       </div>
     </section>
   )
