@@ -4,7 +4,7 @@ export default function Footer() {
       {/* Visual top subtle glow line */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
 
-      <div className="mx-auto max-w-6xl px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-12">
           {/* Brand/Slogan Column */}
           <div className="space-y-4">

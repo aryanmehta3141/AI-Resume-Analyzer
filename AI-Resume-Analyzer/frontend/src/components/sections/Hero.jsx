@@ -2,15 +2,15 @@ import Button from '../ui/Button'
 
 export default function Hero() {
   return (
-    <section className="relative pt-28 pb-14 md:pt-36 md:pb-18">
-      <div className="mx-auto max-w-6xl px-6 text-center lg:px-8">
+    <section className="relative pt-28 pb-14 md:pt-36 md:pb-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 text-center lg:px-8">
         <div className="mx-auto max-w-4xl space-y-6 md:space-y-7">
           <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-zinc-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
             AI-powered resume insights
           </p>
 
-          <h1 className="text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
             Land your dream job with{' '}
             <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
               smarter resumes
